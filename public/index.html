@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>PDF Approval Workflow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Main styles -->
+  <link rel="stylesheet" href="style.css">
+  <!-- PDF.js for PDF rendering (required for preview) -->
+  <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+</head>
+
+<body>
+  <!-- Navigation -->
+  <nav id="main-navbar">
+    <div class="nav-inner">
+      <div class="nav-title">PDF Approval System</div>
+      <div class="nav-links" id="nav-user-links"></div>
+    </div>
+  </nav>
+  <!-- Notification popup -->
+  <div id="notification"></div>
+
+  <!-- Login Page -->
+  <div class="container" id="auth-page">
+    <h2>Sign In</h2>
+    <form id="login-form" autocomplete="off">
+      <input type="text" id="login-username" placeholder="Username" required><br>
+      <input type="password" id="login-password" placeholder="Password" required><br>
+      <button type="submit">Login</button>
+    </form>
+    <p>Or <a href="#" id="show-register">Register a new account</a></p>
+    <div id="auth-status" style="color:red;min-height:18px;"></div>
+  </div>
+
+  <!-- Register Page -->
+  <div class="container hidden" id="register-page">
+    <h2>Register</h2>
+    <form id="register-form" enctype="multipart/form-data">
+      <input type="text" id="reg-username" placeholder="Username" required><br>
+      <input type="password" id="reg-password" placeholder="Password" required><br>
+      <input type="email" id="reg-email" placeholder="Email" required><br>
+      <input type="text" id="reg-fullname" placeholder="Full Name" required><br>
+      <input type="file" id="reg-signature" accept="image/*"><br>
+      <select id="reg-role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select><br>
+      <button type="submit">Register</button>
+    </form>
+    <p><a href="#" id="show-login">Back to login</a></p>
+    <div id="register-status" style="color:red;min-height:18px;"></div>
+  </div>
+
+  <!-- PDF Upload Page -->
+  <div class="container hidden" id="upload-page">
+    <div class="user-info" id="user-info"></div>
+    <h2>PDF Approval Upload</h2>
+    <label id="upload-label" for="pdf-upload">Upload a PDF file to start approval process:</label>
+    <input type="file" id="pdf-upload" accept="application/pdf">
+    <input type="text" id="doc-name" placeholder="Document Name (optional)">
+    <canvas id="pdf-canvas" width="480" height="600"></canvas>
+    <br>
+    <button id="to-approval-btn" style="display:none;">Submit PDF</button>
+    <button id="goto-approval-btn" type="button">Go to Approval Workflow</button>
+    <div id="upload-status"></div>
+  </div>
+
+  <!-- Approval Table Page -->
+  <div class="container hidden" id="approval-table-page">
+    <div class="user-info" id="user-info-table"></div>
+    <h2>Document Approval Workflow</h2>
+    <table id="approval-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Document</th>
+          <th>Link</th>
+          <th>Status</th>
+          <th>Uploader</th>
+          <th>Uploaded At</th>
+          <th>Approved At</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+    <button id="goto-upload-btn" type="button">Back to Upload</button>
+  </div>
+
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+
+</html>
