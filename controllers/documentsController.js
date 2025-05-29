@@ -6,25 +6,17 @@ const pdfjsLib = require('pdfjs-dist');
 
 require('dotenv').config();
 
-// If on Node 18+, you have fetch; if not, use node-fetch.
 const fetch = global.fetch || ((...args) => import('node-fetch').then(({default: fetch}) => fetch(...args)));
 
-const POWER_AUTOMATE_URL = process.env.POWER_AUTOMATE_URL
-    || "https://prod-87.southeastasia.logic.azure.com:443/workflows/04b03f1de7404edbb1edef36b0738ea1/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=wR70QDlVx_82FsZPxQxhOSgo4wEtVxiqLw9XJYbVfkc";
+const POWER_AUTOMATE_URL = process.env.POWER_AUTOMATE_URL || "";
 
-// Helper to notify Power Automate via HTTP POST (now with base64 file)
 async function notifyPowerAutomate(email, status, fileName, fileBase64) {
   if (!POWER_AUTOMATE_URL) return;
   try {
     const res = await fetch(POWER_AUTOMATE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        status,
-        fileName,
-        fileBase64
-      })
+      body: JSON.stringify({ email, status, fileName, fileBase64 })
     });
     if (!res.ok) {
       console.error('Failed to notify Power Automate:', await res.text());
@@ -79,7 +71,11 @@ exports.approveDocument = async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   try {
     const { id } = req.params;
-    const docResult = await pool.query('SELECT * FROM approvals WHERE id = $1', [id]);
+    // Get document info
+    const docResult = await pool.query(
+      'SELECT a.*, u.user_signature, u.full_name FROM approvals a LEFT JOIN users u ON a.uploaded_by = u.id WHERE a.id = $1',
+      [id]
+    );
     if (!docResult.rows.length) return res.status(404).json({ error: 'Document not found' });
     const document = docResult.rows[0];
 
@@ -117,7 +113,7 @@ exports.approveDocument = async (req, res) => {
     anchorAtent = findKeyword(textContent.items, keywordAtentamente);
     anchorName = findKeyword(textContent.items, keywordName);
 
-    const sigW = 220, sigH = 28;
+    const sigW = 220, sigH = 80; // Make the image obvious
 
     if (anchorAtent) {
       let sigX = anchorAtent.x + (anchorAtent.width / 2) - (sigW / 2);
@@ -131,21 +127,41 @@ exports.approveDocument = async (req, res) => {
       let sigY = anchorName.y + 18;
       pos = { sigX, sigY, sigW, sigH };
     } else {
-      pos = { sigX: viewport.width - sigW - 50, sigY: 50, sigW, sigH };
+      pos = { sigX: 50, sigY: 50, sigW, sigH }; // If nothing found, lower left
     }
 
-    // Sign with pdf-lib at detected/fallback position (TEXT SIGNATURE)
+    // ==== USE YOUR TEST SIGNATURE IMAGE ====
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPages();
     const lastPage = pages[pages.length - 1];
-    const font = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-    lastPage.drawText('JOSEPH JUI CHANG HSU', {
-      x: pos.sigX,
-      y: pos.sigY,
-      size: 22,
-      font: font,
-      color: rgb(0.11, 0.19, 0.65)
-    });
+    let drewImage = false;
+
+    const testSigPath = path.join(__dirname, '..', 'uploads', '1748497263030-test_signature.png');
+    console.log('Test signature image file exists:', fs.existsSync(testSigPath));
+    try {
+      const signatureImageBytes = fs.readFileSync(testSigPath);
+      const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+      lastPage.drawImage(signatureImage, {
+        x: pos.sigX,
+        y: pos.sigY,
+        width: pos.sigW,
+        height: pos.sigH,
+      });
+      drewImage = true;
+      console.log('Test signature image embedded!');
+    } catch (err) {
+      console.log('ERROR EMBEDDING TEST IMAGE:', err);
+      // fallback to text if test fails
+      const font = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+      lastPage.drawText(document.full_name || 'APPROVED', {
+        x: pos.sigX,
+        y: pos.sigY,
+        size: 22,
+        font: font,
+        color: rgb(0.11, 0.19, 0.65)
+      });
+    }
+
     const signedPdfBytes = await pdfDoc.save();
     const signedFilename = pdfPath.replace(/\.pdf$/i, '_signed.pdf');
     fs.writeFileSync(signedFilename, signedPdfBytes);
@@ -169,7 +185,7 @@ exports.approveDocument = async (req, res) => {
       );
     }
 
-    res.json({ message: 'Approved and signed (text)!', signed_pdf: signedRelUrl });
+    res.json({ message: drewImage ? 'Approved and signed with image!' : 'Approved and signed with text!', signed_pdf: signedRelUrl });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -184,23 +200,14 @@ exports.rejectDocument = async (req, res) => {
       "UPDATE approvals SET status = 'Rejected', updated_at = NOW() WHERE id = $1",
       [id]
     );
-    // Notify Power Automate (no file attached for rejected, but you can send original if you want)
     const docRes = await pool.query('SELECT * FROM approvals WHERE id = $1', [id]);
     const document = docRes.rows[0];
     if (document) {
       const uploaderRes = await pool.query('SELECT email FROM users WHERE id = $1', [document.uploaded_by]);
       const uploaderEmail = uploaderRes.rows[0]?.email;
       if (uploaderEmail) {
-        // Optionally, send original file as base64, or leave fileBase64 as empty string.
         let fileBase64 = '';
         let fileName = '';
-        // If you want to attach the PDF even on rejection, read and encode the file:
-        /*
-        const originalPdfPath = path.join(__dirname, '..', document.document_url.replace(/^\/files\//, 'uploads/'));
-        const originalPdfBuffer = fs.readFileSync(originalPdfPath);
-        fileBase64 = originalPdfBuffer.toString('base64');
-        fileName = path.basename(originalPdfPath);
-        */
         notifyPowerAutomate(
           uploaderEmail,
           'Rejected',

@@ -18,16 +18,24 @@ const pool = new Pool({
     // 1. Get list of all files in /uploads
     const uploadFiles = await fs.promises.readdir(uploadsDir);
 
-    // 2. Get list of all referenced files from DB
-    const result = await pool.query('SELECT document_url FROM approvals');
-    const referencedFiles = new Set(
-      result.rows
-        .map(row => row.document_url)
-        .filter(url => url)
-        .map(url => path.basename(url))
-    );
+    // 2. Get all referenced document files from approvals
+    const approvalsResult = await pool.query('SELECT document_url FROM approvals');
+    const approvalFiles = approvalsResult.rows
+      .map(row => row.document_url)
+      .filter(url => url)
+      .map(url => path.basename(url));
 
-    // 3. Find orphaned files
+    // 3. Get all referenced signature images from users
+    const usersResult = await pool.query('SELECT user_signature FROM users');
+    const signatureFiles = usersResult.rows
+      .map(row => row.user_signature)
+      .filter(url => url)
+      .map(url => path.basename(url));
+
+    // 4. Combine all referenced files into a Set
+    const referencedFiles = new Set([...approvalFiles, ...signatureFiles]);
+
+    // 5. Find orphaned files (those not referenced in DB)
     const orphanedFiles = uploadFiles.filter(file => !referencedFiles.has(file));
 
     if (orphanedFiles.length === 0) {
