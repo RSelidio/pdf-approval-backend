@@ -5,21 +5,17 @@
   <meta charset="UTF-8">
   <title>PDF Approval Workflow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Main styles -->
   <link rel="stylesheet" href="style.css">
-  <!-- PDF.js for PDF rendering (required for preview) -->
   <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 
 <body>
-  <!-- Navigation -->
   <nav id="main-navbar">
     <div class="nav-inner">
       <div class="nav-title">PDF Approval System</div>
       <div class="nav-links" id="nav-user-links"></div>
     </div>
   </nav>
-  <!-- Notification popup -->
   <div id="notification"></div>
 
   <!-- Login Page -->
@@ -90,8 +86,29 @@
     <button id="goto-upload-btn" type="button">Back to Upload</button>
   </div>
 
-  <!-- Main Application Script -->
+  <!-- Manual Signature Placement Modal -->
+  <div id="manual-sign-modal" class="hidden" style="position:fixed;z-index:10000;top:0;left:0;width:100vw;height:100vh;background:#0009;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:30px;border-radius:18px;max-width:96vw;max-height:96vh;">
+      <h3>Manual Signature Placement</h3>
+      <canvas id="manual-sign-canvas" width="600" height="800" style="border:2px solid #888;"></canvas>
+      <br>
+      <button id="manual-sign-confirm-btn">Confirm Placement</button>
+      <button onclick="closeManualSignModal()">Cancel</button>
+      <div id="manual-sign-coords" style="margin-top:12px;color:#555;"></div>
+    </div>
+  </div>
+
+  <!-- Resubmit Modal -->
+  <div id="resubmit-modal" class="hidden" style="position:fixed;z-index:10010;top:0;left:0;width:100vw;height:100vh;background:#0009;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:30px;border-radius:18px;max-width:96vw;">
+      <h3>Resubmit Document</h3>
+      <input type="file" id="resubmit-pdf" accept="application/pdf"><br>
+      <button id="resubmit-confirm-btn">Resubmit</button>
+      <button onclick="closeResubmitModal()">Cancel</button>
+      <div id="resubmit-status" style="margin-top:12px;color:#555;"></div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
-
 </html>

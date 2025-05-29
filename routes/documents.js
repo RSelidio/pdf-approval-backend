@@ -14,5 +14,7 @@ router.post('/', authMiddleware, upload.single('pdf'), documentsController.uploa
 router.get('/', authMiddleware, documentsController.listDocuments);
 router.post('/:id/approve', authMiddleware, documentsController.approveDocument);
 router.post('/:id/reject', authMiddleware, documentsController.rejectDocument);
+router.post('/:id/manual-sign', authMiddleware, documentsController.manualSignDocument);
+router.post('/:id/resubmit', authMiddleware, upload.single('pdf'), documentsController.resubmitDocument);
 
 module.exports = router;
