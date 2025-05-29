@@ -269,10 +269,12 @@ async function loadApprovals() {
       }
       let linkCell = '';
       if (row.status === 'Approved') {
-        linkCell = `<a href="${row.document_url}" target="_blank" download>Download PDF</a>`;
+        // row.document_name holds your original file name (from the DB)
+        linkCell = `<a href="${row.document_url}" target="_blank" download="${row.document_name}.pdf">Download PDF</a>`;
       } else {
         linkCell = `<a href="${row.document_url}" target="_blank">View PDF</a>`;
       }
+
       const uploadedAt = row.created_at ? new Date(row.created_at).toLocaleString() : '';
       const approvedAt = row.approved_at ? new Date(row.approved_at).toLocaleString() : '';
       const uploader = row.uploader_name || '';
